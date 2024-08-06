@@ -132,7 +132,7 @@ client.on('messageCreate', async (message: Message) => {
           if (!msg.system && msg.author.id === client.user?.id) {
             await msg.delete();
             count++;
-            console.log(`     [ + ] Deletando mensagem do usuário em: ${channel instanceof DMChannel ? 'DM' : (channel as TextChannel).name}`);
+            console.log(`     [+] Deletando mensagem do usuário em: ${channel instanceof DMChannel ? 'DM' : (channel as TextChannel).name}`);
           }
           lastId = msg.id;
         }
@@ -335,10 +335,10 @@ const updateToken = () => {
     settings.token = token;
     client.login(settings.token).then(() => {
       saveSettings();
-      console.log('Token atualizado com sucesso.');
+      console.log('     Token atualizado com sucesso.');
       showMenu();
     }).catch(() => {
-      console.log('Token inválido, por favor tente novamente.');
+      console.log('     Token inválido, por favor tente novamente.');
       updateToken();
     });
   });
@@ -468,8 +468,8 @@ const setStatus = async (client: any, state: string) => {
     const getExtendURL = await RichPresence.getExternal(
       client,
       '367827983903490050',
-      'https://i.scdn.co/image/ab67616d0000b273c30511f33261cde9fcbd91e9',
-      'https://i.scdn.co/image/ab67616d0000b273c30511f33261cde9fcbd91e9'
+      'https://cdn.victims.lol/uploads/a_5e351aea728e10c7c39f94e55f1ed7ac-1722902571447.gif',
+      client.user.avatarURL({ size: 4096 })
     );
 
     const status = new RichPresence(client)
@@ -480,8 +480,6 @@ const setStatus = async (client: any, state: string) => {
       .setName('Victims Multi-tools')
       .setStartTimestamp(Date.now())
       .setAssetsLargeImage(getExtendURL[0].external_asset_path)
-      .setAssetsLargeText('Idle')
-      .setAssetsSmallImage('373370493127884800')
       .setAssetsSmallText('Running')
       .addButton('Victims', 'https://discord.gg/erro');
 
