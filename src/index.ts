@@ -502,7 +502,7 @@ const setStatus = async (client: any, state: string) => {
     const getExtendURL = await RichPresence.getExternal(
       client,
       '418562325121990661',
-      'https://cdn.victims.lol/uploads/a_5e351aea728e10c7c39f94e55f1ed7ac-1722902571447.gif',
+      'https://avatars.githubusercontent.com/u/175876903?v=4',
       client.user.avatarURL({ size: 4096 })
     );
 
@@ -511,6 +511,7 @@ const setStatus = async (client: any, state: string) => {
       .setType('PLAYING')
       .setURL('https:/discord.gg/erro')
       .setState(state)
+      .setDetails(`Version ${version}`)
       .setName('Victims Multi-tools')
       .setStartTimestamp(Date.now())
       .setAssetsLargeImage(getExtendURL[0].external_asset_path)
