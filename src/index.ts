@@ -48,7 +48,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.0";
+const version = "1.25"
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -61,17 +61,40 @@ const saveSettings = () => {
   fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
 };
 
-client.once('ready', () => {
+async function checarUpdates(versionAtual: string): Promise<boolean> {
+  try {
+    const resposta = await fetch("https://api.github.com/repos/Victims-Team/Multi-tool/releases/latest");
+    const dados = await resposta.json();
+
+    return dados.body !== versionAtual;
+  } catch (erro) {
+    console.error('Erro ao verificar atualizações:', erro);
+    return false;
+  }
+}
+
+client.once('ready', async () => {
   console.clear();
   loggedInUser = client.user?.username || '';
+  
   if (!loggedInUser) {
     console.log(colorful(colors.purple, banner));
     console.log(colorful(colors.purple, '     [x] Você está deslogado. Por favor, faça login.'));
     updateToken();
   } else {
-    showMenu();
+    const temAtualizacao = await checarUpdates(version);
+
+    if (temAtualizacao) {
+      console.clear()
+      console.log(colorful(colors.purple, banner));
+      console.log('     [+] Há uma nova atualização disponível!');
+      return;
+    }
+
+    showMenu()
   }
 });
+
 
 const showMenu = () => {
   setStatus(client, 'Standing on the dashboard')
@@ -132,14 +155,11 @@ client.on('messageCreate', async (message: Message) => {
         for (const msg of sortedMessages) {
           if (!msg.system && msg.author.id === client.user?.id) {
             await msg.delete();
-            count++;
-            console.log(`     [+] Deletando mensagem do usuário em: ${channel instanceof DMChannel ? 'DM' : (channel as TextChannel).name}`);
           }
           lastId = msg.id;
         }
       } while (messages.size > 0);
 
-      console.log(`     [✓] Limpeza concluída. Total de mensagens deletadas: ${count}`);
     } catch (error) {
       console.log('     [x] Ocorreu um erro:', error);
     }
@@ -423,13 +443,6 @@ const cloneServer = async () => {
               ...(channelType === 'GUILD_TEXT' ? { topic: (channel as TextChannel).topic || undefined, nsfw: (channel as TextChannel).nsfw } : { bitrate: (channel as VoiceChannel).bitrate, userLimit: (channel as VoiceChannel).userLimit })
             });
 
-            const permissions = channel.permissionOverwrites.cache.map(overwrite => ({
-              id: overwrite.id === originalGuild.roles.everyone.id ? newGuild.roles.everyone.id : roleMap.get(overwrite.id)?.id || overwrite.id,
-              allow: overwrite.allow.bitfield,
-              deny: overwrite.deny.bitfield
-            }));
-
-            await newChannel.permissionOverwrites.set(permissions);
           }
         };
 
@@ -468,13 +481,13 @@ const setStatus = async (client: any, state: string) => {
 
     const getExtendURL = await RichPresence.getExternal(
       client,
-      '367827983903490050',
+      '418562325121990661',
       'https://cdn.victims.lol/uploads/a_5e351aea728e10c7c39f94e55f1ed7ac-1722902571447.gif',
       client.user.avatarURL({ size: 4096 })
     );
 
     const status = new RichPresence(client)
-      .setApplicationId('367827983903490050')
+      .setApplicationId('418562325121990661')
       .setType('PLAYING')
       .setURL('https:/discord.gg/erro')
       .setState(state)
