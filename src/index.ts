@@ -48,7 +48,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.25"
+const version = "1.35"
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
