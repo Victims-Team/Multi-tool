@@ -48,7 +48,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.15";
+const version = "1.25";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -501,13 +501,13 @@ const setStatus = async (client: any, state: string) => {
 
     const getExtendURL = await RichPresence.getExternal(
       client,
-      '418562325121990661',
+      '1271469271574118441',
       'https://avatars.githubusercontent.com/u/175876903?v=4',
       client.user.avatarURL({ size: 4096 })
     );
 
     const status = new RichPresence(client)
-      .setApplicationId('418562325121990661')
+      .setApplicationId('1271469271574118441')
       .setType('PLAYING')
       .setURL('https:/discord.gg/erro')
       .setState(state)
