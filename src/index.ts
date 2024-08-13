@@ -1,5 +1,5 @@
 import readline from 'readline';
-import { Client, Collection, RichPresence, TextChannel, DMChannel, VoiceChannel, Permissions, Role, CategoryChannel, Guild, Message, User } from 'discord.js-selfbot-v13';
+import { Client, Collection, RichPresence, TextChannel, DMChannel, VoiceChannel, Permissions, Role, CategoryChannel, Guild, Message } from 'discord.js-selfbot-v13';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -48,7 +48,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.35"
+const version = "1.35";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -61,22 +61,38 @@ const saveSettings = () => {
   fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
 };
 
+const fileUrl = 'https://raw.githubusercontent.com/Victims-Team/Multi-tool/main/src/index.ts';
+
 async function checarUpdates(versionAtual: string): Promise<boolean> {
   try {
     const resposta = await fetch("https://api.github.com/repos/Victims-Team/Multi-tool/releases/latest");
     const dados = await resposta.json();
+    const latestVersion = dados.body;
 
-    return dados.body !== versionAtual;
+    return latestVersion !== versionAtual;
   } catch (erro) {
     console.error('Erro ao verificar atualizações:', erro);
     return false;
   }
 }
 
+async function atualizarArquivo() {
+  try {
+    const resposta = await axios.get(fileUrl);
+    const novoConteudo = resposta.data;
+    const filePath = path.resolve(__dirname, 'index.ts'); 
+    
+    fs.writeFileSync(filePath, novoConteudo);
+    console.log('     [=] Atualizado com sucesso, inicie novamente o programa!');
+  } catch (erro) {
+    console.error('     Erro ao atualizar o arquivo:', erro);
+  }
+}
+
 client.once('ready', async () => {
   console.clear();
   loggedInUser = client.user?.username || '';
-  
+
   if (!loggedInUser) {
     console.log(colorful(colors.purple, banner));
     console.log(colorful(colors.purple, '     [x] Você está deslogado. Por favor, faça login.'));
@@ -85,19 +101,22 @@ client.once('ready', async () => {
     const temAtualizacao = await checarUpdates(version);
 
     if (temAtualizacao) {
-      console.clear()
+      console.clear();
       console.log(colorful(colors.purple, banner));
       console.log('     [+] Há uma nova atualização disponível!');
+      console.log('     Digite "yes" para atualizar o arquivo ou qualquer outra tecla para continuar.');
+      
+      rl.question('', async (input) => {
+      });
       return;
     }
 
-    showMenu()
+    showMenu();
   }
 });
 
-
 const showMenu = () => {
-  setStatus(client, 'Standing on the dashboard')
+  setStatus(client, 'Standing on the dashboard');
   console.clear();
   console.log(colorful(colors.purple, banner));
   console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}!`));
@@ -112,7 +131,7 @@ const showMenu = () => {
   console.log(colorful(colors.green, '     [0] Fechar.'));
   console.log("");
 
-  rl.question('     [-] Escolha de acordo com o número:  ', (choice) => {
+  rl.question('     [-] Escolha de acordo:  ', (choice) => {
     switch (choice) {
       case '1': clearDm(); break;
       case '2': clearOpenDMs(); break;
@@ -120,6 +139,7 @@ const showMenu = () => {
       case '4': setTrigger(); break;
       case '5': cloneServer(); break;
       case '9': updateToken(); break;
+      case 'yes': atualizarArquivo(); break;
       case '0': process.exit(); break;
       default: 
         console.log('Escolha apenas as funções acima.');
