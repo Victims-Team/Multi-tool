@@ -11,14 +11,36 @@ process.title = 'Multi-tool';
 interface Settings {
   token: string;
   trigger: string;
+  whitelist: string[];
+  whiteListServers: string[];
 }
 
 let settings: Settings = {
   token: '',
   trigger: '',
+  whitelist: [],
+  whiteListServers: []
+};
+
+let defaultSettings: Settings = {
+  token: '',
+  trigger: '',
+  whitelist: [],
+  whiteListServers: []
 };
 
 const settingsFilePath = path.resolve(__dirname, 'settings.json');
+
+if (fs.existsSync(settingsFilePath)) {
+  const fileContent = fs.readFileSync(settingsFilePath, 'utf-8');
+  const loadedSettings: Partial<Settings> = JSON.parse(fileContent);
+
+  settings = { ...defaultSettings, ...loadedSettings };
+} else {
+  settings = defaultSettings;
+}
+
+fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -48,12 +70,15 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.25";
+const version = "1.35";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
     const fileData = fs.readFileSync(settingsFilePath, 'utf8');
     settings = JSON.parse(fileData);
+    if (!Array.isArray(settings.whitelist)) {
+      settings.whitelist = [];
+    }
   }
 };
 
@@ -126,8 +151,12 @@ const showMenu = () => {
   console.log(colorful(colors.green, '     [2] Limpar todas as DMs abertas.'));
   console.log(colorful(colors.green, '     [3] Limpar DM de Amigos.'));
   console.log(colorful(colors.green, '     [4] Definir Palavra-chave do Trigger.'));
-  console.log(colorful(colors.green, '     [5] Clonar servidor.'));
-  console.log(colorful(colors.green, '     [9] Atualizar Token.'));
+  console.log(colorful(colors.green, '     [5] Remover Amizades.'));
+  console.log(colorful(colors.green, '     [6] Clonar servidor. ( Sem perm em canais )'));
+  console.log(colorful(colors.green, '     [7] Remover Servidores.'));
+  console.log(colorful(colors.green, '     [9] WhiteList ( Servers ).'));
+  console.log(colorful(colors.green, '     [10] WhiteList.'));
+  console.log(colorful(colors.green, '     [11] Atualizar Token.'));
   console.log(colorful(colors.green, '     [0] Fechar.'));
   console.log("");
 
@@ -137,8 +166,12 @@ const showMenu = () => {
       case '2': clearOpenDMs(); break;
       case '3': clearDmFriends(); break;
       case '4': setTrigger(); break;
-      case '5': cloneServer(); break;
-      case '9': updateToken(); break;
+      case '5': removeFriends(); break;
+      case '6': cloneServer(); break;
+      case '7': removeServers(); break;
+      case '9': whitelistServers(); break;
+      case '10': whitelist(); break;
+      case '11': updateToken(); break;
       case 'yes': atualizarArquivo(); break;
       case '0': process.exit(); break;
       default: 
@@ -264,57 +297,58 @@ const clearOpenDMs = async () => {
   console.clear();
   console.log(colorful(colors.purple, banner));
   console.log(colorful(colors.purple, `     [x] Utilizando Clear DM's...`));
-  setStatus(client, "Utilizando Clear DM's")
-  try {
-    const dms = client.channels.cache.filter(channel => channel.type === 'DM') as Collection<string, DMChannel>;
-    if (dms.size === 0) {
-      console.log('     [=] Não há DMs abertas.');
-      showMenu();
-      return;
-    }
+  setStatus(client, "Utilizando Clear DM's");
 
-    for (const dm of dms.values()) {
-      let count = 0;
-      let totalUserMessages = 0;
-      let lastId: string | undefined;
-      let messages: Collection<string, Message>;
+  const dms = client.channels.cache.filter(channel => channel.type === 'DM') as Collection<string, DMChannel>;
+  const whitelistSet = new Set(settings.whitelist); 
 
-      do {
-        messages = await dm.messages.fetch({ limit: 100, ...(lastId && { before: lastId }) });
-        if (messages.size === 0) {
-          console.log('     [=] Sem mensagens nessa DM, passando para a próxima.');
-          break;
-        }
-
-        const sortedMessages = Array.from(messages.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
-
-        for (const message of sortedMessages) {
-          if (message.author.id === client.user?.id) {
-            totalUserMessages++;
-            if (!message.system) {
-              await message.delete();
-              count++;
-              console.log(`     [ + ] Deletando mensagem ${count} do usuário em: DM com ${dm.recipient?.tag}`);
-            }
-          }
-          lastId = message.id;
-        }
-      } while (messages.size > 0);
-
-      if (count > 0) {
-        console.log(`     [✓] Limpeza concluída na DM com ${dm.recipient?.tag}. Total de mensagens deletadas: ${count}`);
-      } else {
-        console.log(`     [=] Não houve mensagens para deletar na DM com ${dm.recipient?.tag}.`);
-      }
-      await dm.delete();
-      console.log(`     [✓] DM com ${dm.recipient?.tag} fechada.`);
-    }
-
-    startCountdown(5);
-  } catch (error) {
-    console.log('     [x] Ocorreu um erro:', error);
-    startCountdown(5);
+  if (dms.size === 0) {
+    console.log('     [=] Não há DMs abertas.');
+    showMenu();
+    return;
   }
+
+  for (const dm of dms.values()) {
+    if (whitelistSet.has(dm.recipient?.id || '')) {
+      console.log(`     [=] DM com ${dm.recipient?.username} está na white list, pulando...`);
+      continue;
+    }
+
+    let count = 0;
+    let lastId: string | undefined;
+    let messages: Collection<string, Message>;
+
+    do {
+      messages = await dm.messages.fetch({ limit: 100, ...(lastId && { before: lastId }) });
+      if (messages.size === 0) {
+        console.log('     [=] Sem mensagens nessa DM, passando para a próxima.');
+        break;
+      }
+
+      const sortedMessages = Array.from(messages.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+
+      for (const message of sortedMessages) {
+        if (message.author.id === client.user?.id) {
+          count++;
+          if (!message.system) {
+            await message.delete();
+            console.log(`     [ + ] Deletando mensagem ${count} do usuário em: DM com ${dm.recipient?.tag}`);
+          }
+        }
+        lastId = message.id;
+      }
+    } while (messages.size > 0);
+
+    if (count > 0) {
+      console.log(`     [✓] Limpeza concluída na DM com ${dm.recipient?.tag}. Total de mensagens deletadas: ${count}`);
+    } else {
+      console.log(`     [=] Não houve mensagens para deletar na DM com ${dm.recipient?.tag}.`);
+    }
+    await dm.delete();
+    console.log(`     [✓] DM com ${dm.recipient?.tag} fechada.`);
+  }
+
+  startCountdown(5);
 };
 
 const requestFriends = async (client: any) => {
@@ -335,15 +369,78 @@ const requestFriends = async (client: any) => {
   }
 };
 
+const removeFriends = async () => {
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, '     [x] Removendo amizades...'));
+  setStatus(client, "Removendo Amizades");
+
+  const friends = await requestFriends(client);
+  const whitelist = settings.whitelist; 
+  const friendCount = friends.length;
+  let count = 0;
+
+  for (const friend of friends) {
+    if (whitelist.includes(friend.id)) {
+      console.log(colorful(colors.yellow, `     [=] Amizade ${friend.username} (${friend.id}) está na white list e não será removida.`));
+      continue;
+    }
+
+    try {
+      await axios.delete(`https://discord.com/api/v9/users/@me/relationships/${friend.id}`, {
+        headers: {
+          'Authorization': client.token,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+          'X-Super-Properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiQ2hyb21lIiwiZGV2aWNlIjoiIiwic3lzdGVtX2xvY2FsZSI6InB0LUJSIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzExMC4wLjAuMCBTYWZhcmkvNTM3LjM2IiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTEwLjAuMC4wIiwib3NfdmVyc2lvbiI6IjEwIiwicmVmZXJyZXIiOiJodHRwczovL2Rpc2NvcmQuY29tLyIsInJlZmVycmluZ19kb21haW4iOiJkaXNjb3JkLmNvbSIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWZlcnJpbmdfZG9tYWluX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoxODU1MTYsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGwsImRlc2lnbl9pZCI6MH0=',
+          'Referer': 'https://discord.com/channels/@me'
+        }
+      });
+      count++;
+      console.log(colorful(colors.purple, `     [x] Amizade removida: ${friend.username} (${count}/${friendCount})`));
+    } catch (error) {
+      console.error(colorful(colors.red, `     [x] Erro ao remover amizade: ${friend.username}`));
+    }
+  }
+  console.log(colorful(colors.purple, `     [x] Todas as amizades foram processadas!`));
+};
+
+const removeServers = async () => {
+  const servers = client.guilds.cache.map((server) => server);
+  const whitelist = settings.whiteListServers;
+
+  for (const server of servers) {
+    if (whitelist.includes(server.id)) {
+      console.log(colorful(colors.yellow, `     [=] Servidor ${server.name} (${server.id}) está na white list e não será removido.`));
+      continue;
+    }
+
+    try {
+      await server.leave();
+      console.log(colorful(colors.purple, `     [x] Servidor removido: ${server.name} (${servers.indexOf(server) + 1}/${servers.length})`));
+    } catch (error) {
+      console.error(colorful(colors.red, `     [x] Erro ao remover servidor: ${server.name}`));
+    }
+  }
+  startCountdown(5)
+};
+
 const clearDmFriends = async () => {
   console.clear();
   console.log(colorful(colors.purple, banner));
   console.log(colorful(colors.purple, '     [x] Limpando DM de Amigos...'));
-  setStatus(client, "Limpando DM de Amigos")
+  setStatus(client, "Limpando DM de Amigos");
+
   const friends = await requestFriends(client);
+  const whitelistSet = new Set(settings.whitelist);
 
   let count = 0;
+
   for (const friend of friends) {
+    if (whitelistSet.has(friend.id)) {
+      console.log(`     [=] Amigo ${friend.username} está na white list, pulando...`);
+      continue;
+    }
+
     const dm = await client.channels.cache.find(ch => ch instanceof DMChannel && (ch as DMChannel).recipient?.id === friend.id);
     if (!dm || !(dm instanceof DMChannel)) continue;
 
@@ -354,7 +451,7 @@ const clearDmFriends = async () => {
       messages = await dm.messages.fetch({ limit: 100, ...(lastId && { before: lastId }) });
       if (messages.size === 0) break;
 
-      const sortedMessages = Array.from(messages.values()).sort((a, b) => (b as Message).createdTimestamp - (a as Message).createdTimestamp);
+      const sortedMessages = Array.from(messages.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
 
       for (const msg of sortedMessages) {
         if (!msg.system && msg.author.id === client.user?.id) {
@@ -477,6 +574,140 @@ const cloneServer = async () => {
       } 
     });
   });
+};
+
+const whitelist = async () => {
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, '     [=] Menu de WhiteList:'));
+  console.log(colorful(colors.green, `     [1] Adicionar ID à WhiteList`));
+  console.log(colorful(colors.green, `     [2] Remover ID da WhiteList`));
+  console.log(colorful(colors.green, `     [3] Mostrar quantidade de IDs na WhiteList`));
+  console.log(colorful(colors.green, `     [0] Voltar ao menu`));
+
+  rl.question('     [-] Escolha uma opção: ', (choice) => {
+    switch (choice) {
+      case '1': addIdToWhitelist(); break;
+      case '2': removeIdFromWhitelist(); break;
+      case '3': showWhitelistCount(); break;
+      case '0': showMenu(); break;
+      default:
+        console.log('Escolha uma opção válida.');
+        whitelist();
+    }
+  });
+};
+
+const addIdToWhitelist = () => {
+  rl.question('     [-] Insira o ID do usuário para adicionar à white list: ', (id) => {
+    if (settings.whitelist.includes(id)) {
+      console.log('     [x] ID já está na white list.');
+    } else {
+      client.users.fetch(id)
+      .then(user => {
+        settings.whitelist.push(id);
+        saveSettings();
+        console.log('     [=] ID adicionado à white list.');
+        setTimeout(
+          () => whitelist(),
+          2000
+        )
+        })
+        .catch(error => {
+          console.log('     Erro ao adicionar ID à white list.');
+          setTimeout(
+            () => whitelist(),
+            2000
+          )
+        })
+    }
+  });
+};
+
+const removeIdFromWhitelist = () => {
+  rl.question('     [-] Insira o ID do usuário para remover da white list: ', (id) => {
+    const index = settings.whitelist.indexOf(id);
+    if (index === -1) {
+      console.log('     [x] ID não encontrado na white list.');
+    } else {
+      settings.whitelist.splice(index, 1);
+      saveSettings();
+      console.log(`     [✓] ID ${id} removido da white list.`);
+    }
+    whitelist();
+  });
+};
+
+const showWhitelistCount = () => {
+  console.log(`     [=] Total de IDs na white list: ${settings.whitelist.length}`);
+  whitelist();
+};
+
+const whitelistServers = async () => {
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, '     [=] Menu de WhiteList de Servidores:'));
+  console.log(colorful(colors.green, `     [1] Adicionar ID à WhiteList`));
+  console.log(colorful(colors.green, `     [2] Remover ID da WhiteList`));
+  console.log(colorful(colors.green, `     [3] Mostrar quantidade de IDs na WhiteList`));
+  console.log(colorful(colors.green, `     [0] Voltar ao menu`));
+
+  rl.question('     [-] Escolha uma opção: ', (choice) => {
+    switch (choice) {
+      case '1': addIdToWhitelistServers(); break;
+      case '2': removeIdFromWhitelistServers(); break;
+      case '3': showWhitelistCountServers(); break;
+      case '0': showMenu(); break;
+      default:
+        console.log('Escolha uma opção válida.');
+        whitelistServers();
+    }
+  });
+};
+
+const addIdToWhitelistServers = async () => {
+  rl.question('     [-] Insira o ID do servidor para adicionar à white list: ', (id) => {
+    if (settings.whiteListServers.includes(id)) {
+      console.log('     [x] ID já está na white list.');
+    } else {
+      const server = client.guilds.fetch(id)
+      .then((guild) => {
+        if (guild) {
+          settings.whiteListServers.push(id);
+          saveSettings();
+          console.log(`     [✓] ID ${id} adicionado à white list.`)
+          setTimeout(() => {
+            whitelistServers();
+          }, 3000);
+          }
+     }).catch((error) => {
+        console.log('     [x] ID não encontrado.');
+        setTimeout(() => {
+          whitelistServers();
+        }, 3000);
+        }
+     )
+    }
+  });
+};
+
+const removeIdFromWhitelistServers = () => {
+  rl.question('     [-] Insira o ID do servidor para remover da white list: ', (id) => {
+    const index = settings.whiteListServers.indexOf(id);
+    if (index === -1) {
+      console.log('     [x] ID não encontrado na white list.');
+    } else {
+      settings.whitelist.splice(index, 1);
+      saveSettings();
+      console.log(`     [✓] ID ${id} removido da white list.`);
+    }
+    whitelistServers();
+  });
+};
+
+const showWhitelistCountServers = () => {
+  console.log(`     [=] Total de IDs na white list: ${settings.whitelist.length}`);
+  whitelistServers();
 };
 
 function startCountdown(seconds: number): void {
