@@ -28,7 +28,7 @@ Para iniciar o projeto, execute o seguinte comando:
 - [Auto Update]
 
 ## Preview
-<img src="https://cdn.victims.lol/uploads/image-1722894263004.png">
+<img src="https://i.imgur.com/meiA2K1.png">
 
 ## Contribuição
 
