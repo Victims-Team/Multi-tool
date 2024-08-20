@@ -70,7 +70,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.35";
+const version = "1.45";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -602,6 +602,10 @@ const addIdToWhitelist = () => {
   rl.question('     [-] Insira o ID do usuário para adicionar à white list: ', (id) => {
     if (settings.whitelist.includes(id)) {
       console.log('     [x] ID já está na white list.');
+      setTimeout(
+        () => whitelist(),
+        2000
+      )
     } else {
       client.users.fetch(id)
       .then(user => {
@@ -669,6 +673,9 @@ const addIdToWhitelistServers = async () => {
   rl.question('     [-] Insira o ID do servidor para adicionar à white list: ', (id) => {
     if (settings.whiteListServers.includes(id)) {
       console.log('     [x] ID já está na white list.');
+      setTimeout(() => {
+        whitelistServers();
+      }, 3000);
     } else {
       const server = client.guilds.fetch(id)
       .then((guild) => {
