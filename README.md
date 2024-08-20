@@ -21,6 +21,11 @@ Para iniciar o projeto, execute o seguinte comando:
 - [Clear DM Friends]
 - [Server Cloner]
 - [Triger]
+- [Clear Friends]
+- [Clear Servers]
+- [Whitelist]
+- [Whitelist Servers]
+- [Auto Update]
 
 ## Preview
 <img src="https://cdn.victims.lol/uploads/image-1722894263004.png">
