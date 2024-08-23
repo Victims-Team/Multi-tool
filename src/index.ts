@@ -1,5 +1,5 @@
 import readline from 'readline';
-import { Client, Collection, RichPresence, TextChannel, DMChannel, VoiceChannel, Permissions, Role, CategoryChannel, Guild, Message } from 'discord.js-selfbot-v13';
+import { Client, Collection, RichPresence, TextChannel, DMChannel, VoiceChannel, Permissions, Role, CategoryChannel, Guild, Message, Snowflake } from 'discord.js-selfbot-v13';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -70,7 +70,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.45";
+const version = "1.55";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -103,8 +103,8 @@ async function checarUpdates(versionAtual: string): Promise<boolean> {
 
 async function atualizarArquivo() {
   try {
-    const resposta = await axios.get(fileUrl);
-    const novoConteudo = resposta.data;
+    const resposta = await fetch(fileUrl);
+    const novoConteudo = await resposta.text();
     const filePath = path.resolve(__dirname, 'index.ts'); 
     
     fs.writeFileSync(filePath, novoConteudo);
@@ -154,9 +154,10 @@ const showMenu = () => {
   console.log(colorful(colors.green, '     [5] Remover Amizades.'));
   console.log(colorful(colors.green, '     [6] Clonar servidor. ( Sem perm em canais )'));
   console.log(colorful(colors.green, '     [7] Remover Servidores.'));
-  console.log(colorful(colors.green, '     [9] WhiteList ( Servers ).'));
-  console.log(colorful(colors.green, '     [10] WhiteList.'));
-  console.log(colorful(colors.green, '     [11] Atualizar Token.'));
+  console.log(colorful(colors.green, '     [8] Fechar todas as DMs.'));
+  console.log(colorful(colors.green, '     [9] WhiteList.'));
+  console.log(colorful(colors.green, '     [10] Utilidades em Call.'));
+  console.log(colorful(colors.green, '     [99] Atualizar Token.'));
   console.log(colorful(colors.green, '     [0] Fechar.'));
   console.log("");
 
@@ -169,9 +170,10 @@ const showMenu = () => {
       case '5': removeFriends(); break;
       case '6': cloneServer(); break;
       case '7': removeServers(); break;
-      case '9': whitelistServers(); break;
-      case '10': whitelist(); break;
-      case '11': updateToken(); break;
+      case '8': deleteDms(); break;
+      case '9': questionWhiteList(); break;
+      case '10': utilInVoice(); break;
+      case '99': updateToken(); break;
       case 'yes': atualizarArquivo(); break;
       case '0': process.exit(); break;
       default: 
@@ -182,7 +184,11 @@ const showMenu = () => {
 };
 
 client.on('messageCreate', async (message: Message) => {
-  if (message.author.id === client.user?.id && message.content === settings.trigger && !message.system) {
+  if (!message.content || message.author.id === client.user?.id || message.content.trim() === '' || message.system) {
+    return;
+  }
+
+  if (message.content === settings.trigger) {
     try {
       let channel: TextChannel | DMChannel | null = null;
       if (message.channel instanceof DMChannel) {
@@ -350,6 +356,31 @@ const clearOpenDMs = async () => {
 
   startCountdown(5);
 };
+
+const deleteDms = async () => {
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [x] Utilizando Clear DM's...`));
+  setStatus(client, "Utilizando Clear DM's");
+
+  const dms = client.channels.cache.filter(channel => channel.type === 'DM') as Collection<string, DMChannel>;
+  const whitelistSet = new Set(settings.whitelist); 
+  const dmCount = dms.size;
+
+  for (const dm of dms.values()) {
+    if (whitelistSet.has(dm.recipient?.id || '')) {
+      console.log(`     [=] DM com ${dm.recipient?.username} está na white list, pulando...`);
+      continue;
+    }
+
+    let count = 0
+
+    await dm.delete();
+    console.log(`     [✓] DM com ${dm.recipient?.tag} fechada.`);
+  }
+
+  startCountdown(5)
+}
 
 const requestFriends = async (client: any) => {
   await new Promise(resolve => setTimeout(resolve, 2000));
@@ -573,6 +604,267 @@ const cloneServer = async () => {
         startCountdown(5);
       } 
     });
+  });
+};
+
+const questionWhiteList = async () => {
+  setStatus(client, 'Painel de White list');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}!`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.green, '     [1] White List de Servidores.'));
+  console.log(colorful(colors.green, '     [2] White List de Usuarios.'));
+  console.log(colorful(colors.green, '     [0] Voltar ao Menu.'));
+
+  rl.question('     [-] Escolha de acordo:  ', (choice) => {
+    switch (choice) { 
+       case '1': whitelistServers(); break;
+       case '2': whitelist(); break;
+       case '0': showMenu(); break;
+       default: showMenu(); break;
+    }
+  });
+};
+
+const utilInVoice = async ()=> {
+  setStatus(client, 'Utilidades em voz');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}!`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.green, '     [1] Mover todos de 1 Canal.'));
+  console.log(colorful(colors.green, '     [2] Mover todos de 1 Canal ( Loop ).'));
+  console.log(colorful(colors.green, '     [3] Desconectar todos de 1 Canal.'));
+  console.log(colorful(colors.green, '     [4] Desconectar todos de 1 Servidor.'));
+  console.log(colorful(colors.green, '     [0] Voltar ao menu'));
+
+  rl.question('     [-] Escolha de acordo:  ', (choice) => {
+    switch (choice) {
+      case '1': moveMembersToChannel(); break;
+      case '2': moveMembersToChannelLoop(); break;
+      case '3': disconnectMembersFromVoiceChannel(); break;
+      case '4': disconnectMembersFromServer(); break;
+      case '0': showMenu(); break;
+      default: showMenu();
+    }           
+  })
+};
+
+const moveMembersToChannel = async () => {
+  setStatus(client, 'Movendo todos de 1 Canal');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}!`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.green, '     [=] Mover todos de 1 Canal.'));
+  
+  rl.question(colorful(colors.purple, '     [=] Digite o ID do canal de origem: '), (fromChannelId) => {
+    rl.question(colorful(colors.purple, '     [=] Digite o ID do canal de destino: '), async (toChannelId) => {
+      
+      const fromChannel = client.channels.cache.get(fromChannelId) as VoiceChannel;
+      const toChannel = client.channels.cache.get(toChannelId) as VoiceChannel;
+      
+      if (!fromChannel || !toChannel) {
+        console.log(colorful(colors.red, '     [!] Um ou ambos os canais não foram encontrados.'));
+        setTimeout(
+          () => utilInVoice(), 2000
+        )
+        return;
+      }
+
+      if (fromChannel.type !== 'GUILD_VOICE' || toChannel.type !== 'GUILD_VOICE') {
+        console.log(colorful(colors.red, '     [!] Ambos os canais devem ser canais de voz.'));
+        setTimeout(
+          () => utilInVoice(), 2000
+        )
+        return;
+      }
+
+      for (const [memberID, member] of fromChannel.members) {
+        try {
+          await member.voice.setChannel(toChannel);
+          console.log(colorful(colors.green, `     [+] Membro ${member.user.tag} movido para ${toChannel.name}.`));
+        } catch (error) {
+          console.log(colorful(colors.red, `     [!] Falha ao mover ${member.user.tag}: ${error}`));
+        }
+      }
+
+      console.log(colorful(colors.green, '     [=] Todos os membros foram movidos com sucesso.'));
+      setTimeout(
+        () => utilInVoice(), 2000
+      )
+    });
+  });
+};
+
+const moveMembersToChannelLoop = async () => {
+  setStatus(client, 'Movendo todos de 1 Canal ( Loop )');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.purple, '     [=] Mover todos de 1 Canal em Loop'));
+
+  rl.question(colorful(colors.purple, '     [=] Digite o ID do canal de origem (ou 0 para sair): '), async (fromChannelId) => {
+    if (fromChannelId === '0') {
+      console.log(colorful(colors.red, '     [!] Movimentação cancelada.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    const fromChannel = client.channels.cache.get(fromChannelId) as VoiceChannel;
+
+    if (!fromChannel || fromChannel.type !== 'GUILD_VOICE') {
+      console.log(colorful(colors.red, '     [!] O canal fornecido não é um canal de voz válido.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    const guild = fromChannel.guild;
+    const voiceChannels = guild.channels.cache.filter(channel => channel.type === 'GUILD_VOICE' && channel.id !== fromChannel.id) as Collection<Snowflake, VoiceChannel>;
+
+    if (voiceChannels.size < 2) {
+      console.log(colorful(colors.red, '     [!] Não há canais de voz suficientes no servidor.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    let stopLoop = false;
+    const memberIds = Array.from(fromChannel.members.keys()); 
+
+    console.log(colorful(colors.green, '     [=] Começando a mover os membros aleatoriamente...'));
+
+    const moveMembersContinuously = async () => {
+      while (!stopLoop) {
+        for (const memberID of memberIds) {
+          const member = guild.members.cache.get(memberID);
+          if (!member || !member.voice.channel) continue;
+
+          const randomChannel = voiceChannels.random();
+
+          if (randomChannel) {
+            try {
+              await member.voice.setChannel(randomChannel);
+              process.stdout.clearLine(0);
+              process.stdout.cursorTo(0);
+              process.stdout.write(colorful(colors.green, `     [+] Membro ${member.user.tag} movido para ${randomChannel.name}.`));
+              await new Promise(resolve => setTimeout(resolve, 500)); 
+            } catch (error) {
+              process.stdout.clearLine(0);
+              process.stdout.cursorTo(0);
+              process.stdout.write(colorful(colors.red, `     [!] Falha ao mover ${member.user.tag}: ${error}`));
+            }
+          }
+        }
+      }
+    };
+
+    moveMembersContinuously();
+
+    rl.question(colorful(colors.purple, '\n     [=] Digite 0 a qualquer momento para parar o loop: '), (input) => {
+      if (input === '0') {
+        stopLoop = true;
+        console.log(colorful(colors.red, '\n     [!] Movimentação em loop cancelada.'));
+        setTimeout(() => utilInVoice(), 2000);
+      }
+    });
+  });
+};
+
+const disconnectMembersFromVoiceChannel = async () => {
+  setStatus(client, 'Desconectando Membros de 1 Canal');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.purple, '     [=] Desconectar Membros de 1 Canal'));
+
+  rl.question(colorful(colors.purple, '     [=] Digite o ID do canal de origem (ou 0 para sair): '), async (fromChannelId) => {
+    if (fromChannelId === '0') {
+      console.log(colorful(colors.red, '     [!] Desconexão cancelada.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    const fromChannel = client.channels.cache.get(fromChannelId) as VoiceChannel;
+
+    if (!fromChannel || fromChannel.type !== 'GUILD_VOICE') {
+      console.log(colorful(colors.red, '     [!] O canal fornecido não é um canal de voz válido.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    console.log(colorful(colors.green, `     [=] Desconectando todos os membros do canal: ${fromChannel.name}`));
+
+    for (const [memberID, member] of fromChannel.members) {
+      try {
+        await member.voice.disconnect(); 
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        process.stdout.write(colorful(colors.green, `     [+] Membro ${member.user.tag} desconectado.`));
+      } catch (error) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        process.stdout.write(colorful(colors.red, `     [!] Falha ao desconectar ${member.user.tag}: ${error}`));
+      }
+    }
+
+    console.log(colorful(colors.green, '\n     [=] Todos os membros foram desconectados.'));
+    setTimeout(() => utilInVoice(), 2000);
+  });
+};
+
+const disconnectMembersFromServer = async () => {
+  setStatus(client, 'Desconectando Membros de Todos os Canais do Servidor');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.purple, '     [=] Desconectar Membros de Todos os Canais do Servidor'));
+
+  rl.question(colorful(colors.purple, '     [=] Digite o ID do servidor (ou 0 para sair): '), async (guildId) => {
+    if (guildId === '0') {
+      console.log(colorful(colors.red, '     [!] Desconexão cancelada.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    const guild = client.guilds.cache.get(guildId);
+
+    if (!guild) {
+      console.log(colorful(colors.red, '     [!] O servidor fornecido não é válido.'));
+      setTimeout(() => utilInVoice(), 2000);
+      return;
+    }
+
+    console.log(colorful(colors.green, `     [=] Desconectando todos os membros de todos os canais de voz no servidor: ${guild.name}`));
+
+    for (const [channelID, channel] of guild.channels.cache) {
+      if (channel.type === 'GUILD_VOICE') {
+        for (const [memberID, member] of channel.members) {
+          try {
+            await member.voice.disconnect(); 
+            process.stdout.clearLine(0);
+            process.stdout.cursorTo(0);
+            process.stdout.write(colorful(colors.green, `     [+] Membro ${member.user.tag} desconectado do canal ${channel.name}.`));
+          } catch (error) {
+            process.stdout.clearLine(0);
+            process.stdout.cursorTo(0);
+            process.stdout.write(colorful(colors.red, `     [!] Falha ao desconectar ${member.user.tag} do canal ${channel.name}: ${error}`));
+          }
+        }
+      }
+    }
+
+    console.log(colorful(colors.green, '\n     [=] Todos os membros foram desconectados de todos os canais de voz do servidor.'));
+    setTimeout(() => utilInVoice(), 2000);
   });
 };
 
