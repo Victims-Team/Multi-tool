@@ -25,12 +25,15 @@ Para iniciar o projeto, execute o seguinte comando:
 - [Clear Servers]
 - [Whitelist]
 - [Whitelist Servers]
-- [Utilidades EM Call]
+- [Utilidades em Call]
+- [Utilidades em Chat]
+- [Atualizar Token]
+- [Ativar/Desativar RPC ( Status )]
 - [Fechar todas Dm]
 - [Auto Update]
 
 ## Preview
-<img src="https://i.imgur.com/TzRwSFD.png">
+<img src="https://i.imgur.com/GdM7JU2.png">
 
 ## Em Breve
 - [Avatar Scraper]
