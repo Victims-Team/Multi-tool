@@ -1092,7 +1092,11 @@ const flodmsg = async () => {
 
       console.log('     Iniciando o flood. Digite "0" para parar.');
 
+      let flod = true;
+
       const floodInterval = setInterval(async () => {
+        if (!flod) return;
+
         try {
           await channel.send(message);
         } catch (error) {
@@ -1104,6 +1108,7 @@ const flodmsg = async () => {
         rl.question('     [-] Digite "0" para parar o flood: ', (input) => {
           if (input === '0') {
             clearInterval(floodInterval);
+            flod = false;
             console.log('Flood interrompido.');
             showMenu();
           } else {
