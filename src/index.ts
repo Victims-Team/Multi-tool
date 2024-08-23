@@ -13,20 +13,23 @@ interface Settings {
   trigger: string;
   whitelist: string[];
   whiteListServers: string[];
+  stateRPC: boolean;
 }
 
 let settings: Settings = {
   token: '',
   trigger: '',
   whitelist: [],
-  whiteListServers: []
+  whiteListServers: [],
+  stateRPC: true,
 };
 
 let defaultSettings: Settings = {
   token: '',
   trigger: '',
   whitelist: [],
-  whiteListServers: []
+  whiteListServers: [],
+  stateRPC: true,
 };
 
 const settingsFilePath = path.resolve(__dirname, 'settings.json');
@@ -70,7 +73,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.55";
+const version = "1.65";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -157,7 +160,8 @@ const showMenu = () => {
   console.log(colorful(colors.green, '     [8] Fechar todas as DMs.'));
   console.log(colorful(colors.green, '     [9] WhiteList.'));
   console.log(colorful(colors.green, '     [10] Utilidades em Call.'));
-  console.log(colorful(colors.green, '     [99] Atualizar Token.'));
+  console.log(colorful(colors.green, '     [11] Utildiades em Chat.'));
+  console.log(colorful(colors.green, '     [99] Configuracoes.'));
   console.log(colorful(colors.green, '     [0] Fechar.'));
   console.log("");
 
@@ -173,7 +177,8 @@ const showMenu = () => {
       case '8': deleteDms(); break;
       case '9': questionWhiteList(); break;
       case '10': utilInVoice(); break;
-      case '99': updateToken(); break;
+      case '11': utilInChannel(); break;
+      case '99': questionConfig(); break;
       case 'yes': atualizarArquivo(); break;
       case '0': process.exit(); break;
       default: 
@@ -1009,6 +1014,109 @@ const showWhitelistCountServers = () => {
   whitelistServers();
 };
 
+const questionConfig = async () => {
+  setStatus(client, 'Painel de Config');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.purple, '     [=] Configuracoes do Painel'));
+  console.log("");
+  console.log(colorful(colors.green, '     [1] Utilizar Token.'));
+  console.log(colorful(colors.green, '     [2] Ativar/Desativar RPC ( Status do Painel )'));
+  console.log(colorful(colors.green, '     [0] Voltar ao Menu.'));
+  console.log("");
+
+  rl.question(colorful(colors.purple, '     [=] Escolha uma opção: '), (answer) => {
+    switch (answer) {
+      case '1': updateToken(); break;
+      case '2': toggleRPC(); break;
+      case '0': showMenu(); break;
+      default: showMenu();
+    }
+  });
+};
+
+const toggleRPC = async () => {
+  let stateRPC = settings.stateRPC || "";
+
+  if (stateRPC) {
+    settings.stateRPC = false;
+    await clearStatus(client);
+    console.log(colorful(colors.purple, '     [=] RPC desativado e status limpo.'));
+  } else {
+    settings.stateRPC = true;
+    await setStatus(client, 'Painel de Config');
+    console.log(colorful(colors.purple, '     [=] RPC ativado e status configurado.'));
+  }
+
+  saveSettings();
+
+  startCountdown(3);
+};
+
+const utilInChannel = async () => {
+  setStatus(client, 'Utilidades em Chat');
+  console.clear();
+  console.log(colorful(colors.purple, banner));
+  console.log(colorful(colors.purple, `     [=] Bem-vindo, ${loggedInUser}!`));
+  console.log(colorful(colors.purple, '     [=] Escolha uma função:'));
+  console.log("");
+  console.log(colorful(colors.green, '     [1] Flodar mensagem em 1 Canal.'));
+  console.log(colorful(colors.green, '     [0] Voltar ao menu'));
+
+  rl.question('     [-] Escolha de acordo:  ', (choice) => {
+    switch (choice) {
+      case '1': flodmsg(); break;
+      case '0': showMenu(); break;
+      default: showMenu();
+    }           
+  });
+};
+
+const flodmsg = async () => {
+  rl.question('     [-] Digite a mensagem para flodar: ', (message) => {
+    rl.question('     [-] Digite o ID do canal: ', async (channelId) => {
+      const channel = client.channels.cache.get(channelId);
+
+      if (!channel) {
+        console.log('     Canal não encontrado.');
+        return flodmsg();
+      }
+
+      if (!(channel instanceof TextChannel)) {
+        console.log('     O canal especificado não é um canal de texto.');
+        return flodmsg();
+      }
+
+      console.log('     Iniciando o flood. Digite "0" para parar.');
+
+      const floodInterval = setInterval(async () => {
+        try {
+          await channel.send(message);
+        } catch (error) {
+          console.error('Erro ao enviar a mensagem:', error);
+        }
+      }, 100); 
+
+      const stopFlood = () => {
+        rl.question('     [-] Digite "0" para parar o flood: ', (input) => {
+          if (input === '0') {
+            clearInterval(floodInterval);
+            console.log('Flood interrompido.');
+            showMenu();
+          } else {
+            stopFlood(); 
+          }
+        });
+      };
+
+      stopFlood();
+    });
+  });
+};
+
 function startCountdown(seconds: number): void {
   let counter = seconds;
 
@@ -1026,6 +1134,11 @@ function startCountdown(seconds: number): void {
 }
 
 const setStatus = async (client: any, state: string) => {
+  const stateRPC = settings.stateRPC;
+  if(!stateRPC === true){
+    return;
+  }
+
   try {
     clearStatus(client);
 
