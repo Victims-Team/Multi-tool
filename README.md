@@ -25,10 +25,15 @@ Para iniciar o projeto, execute o seguinte comando:
 - [Clear Servers]
 - [Whitelist]
 - [Whitelist Servers]
+- [Utilidades EM Call]
+- [Fechar todas Dm]
 - [Auto Update]
 
 ## Preview
-<img src="https://i.imgur.com/meiA2K1.png">
+<img src="https://i.imgur.com/TzRwSFD.png">
+
+## Em Breve
+- [Avatar Scraper]
 
 ## Contribuição
 
