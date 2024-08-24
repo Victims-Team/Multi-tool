@@ -73,7 +73,7 @@ const banner = `
                                                    `;
 
 let loggedInUser: string = '';
-const version = "1.65";
+const version = "1.67";
 
 const loadSettings = () => {
   if (fs.existsSync(settingsFilePath)) {
@@ -160,7 +160,7 @@ const showMenu = () => {
   console.log(colorful(colors.green, '     [8] Fechar todas as DMs.'));
   console.log(colorful(colors.green, '     [9] WhiteList.'));
   console.log(colorful(colors.green, '     [10] Utilidades em Call.'));
-  console.log(colorful(colors.green, '     [11] Utildiades em Chat.'));
+  console.log(colorful(colors.green, '     [11] Utilidades em Chat.'));
   console.log(colorful(colors.green, '     [99] Configuracoes.'));
   console.log(colorful(colors.green, '     [0] Fechar.'));
   console.log("");
@@ -189,7 +189,12 @@ const showMenu = () => {
 };
 
 client.on('messageCreate', async (message: Message) => {
-  if (!message.content || message.author.id === client.user?.id || message.content.trim() === '' || message.system) {
+
+  if (!settings.trigger || !message.content) {
+    return;
+  }
+
+  if (message.author.id !== client.user?.id) {
     return;
   }
 
